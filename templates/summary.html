@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>{{ yyyymm }} サマリ</title>
+
+  <style>
+    .item {
+      cursor: pointer;
+      color: #0077cc;
+      text-decoration: underline;
+    }
+
+    /* ===== モーダル用 ===== */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 10;
+    }
+
+    #categoryModal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      min-width: 280px;
+      z-index: 11;
+    }
+
+    .category-buttons button {
+      margin: 3px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>{{ yyyymm }} 支出合計: {{ "{:,}".format(month_total) }} 円</h2>
+
+<div style="margin-bottom:12px">
+{% if prev_enabled %}
+<a href="{{ url_for('summary', yyyymm=prev_yyyymm) }}">← 前の月</a>
+{% else %}
+<span style="color:#aaa">← 前の月</span>
+{% endif %}
+
+|
+
+{% if next_enabled %}
+<a href="{{ url_for('summary', yyyymm=next_yyyymm) }}">次の月 →</a>
+{% else %}
+<span style="color:#aaa">次の月 →</span>
+{% endif %}
+</div>
+
+<div style="margin-bottom:16px">
+  <a href="{{ url_for('categories') }}">カテゴリ一覧</a>
+</div>
+
+<canvas id="pie"></canvas>
+
+<table>
+{% for r in data %}
+<tr>
+  <td>{{ r.date }}</td>
+  <td>
+    <span class="item"
+          data-item="{{ r.item }}"
+          onclick="openCategory(this)">
+      {{ r.item }}
+    </span>
+  </td>
+  <td>{{ r.category }}</td>
+  <td style="text-align:right;">
+    {{ "{:,}".format(r.amount) }}
+  </td>
+</tr>
+{% endfor %}
+</table>
+
+<!-- ===== モーダル背景 ===== -->
+<div id="overlay" onclick="closeCategory()"></div>
+
+<!-- ===== モーダル本体 ===== -->
+<div id="categoryModal">
+  <p id="selectedItem"></p>
+
+  <div class="category-buttons">
+    {% for c in categories %}
+      <button onclick="setCategory('{{ c }}')">{{ c }}</button>
+    {% endfor %}
+  </div>
+
+  <hr>
+
+  <input id="newCategory" placeholder="新規カテゴリ名">
+  <button onclick="createCategory()">新規作成</button>
+
+  <div style="margin-top:10px">
+    <button onclick="closeCategory()">キャンセル</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const labels = {{ pie_labels|tojson }};
+const values = {{ pie_values|tojson }};
+const categoryColors = {{ category_colors|tojson }};
+
+const data = {
+  labels: labels,
+  datasets: [{
+    data: values,
+    backgroundColor: labels.map(l => categoryColors[l] || "#ccc")
+  }]
+};
+
+window.pieChart = new Chart(
+  document.getElementById('pie'),
+  {
+    type: 'pie',
+    data: data
+  }
+);
+</script>
+
+<script>
+let currentItem = "";
+
+function openCategory(el) {
+  currentItem = el.dataset.item;
+  document.getElementById("selectedItem").innerText =
+    "カテゴリ変更：" + currentItem;
+
+  document.getElementById("overlay").style.display = "block";
+  document.getElementById("categoryModal").style.display = "block";
+}
+
+function closeCategory() {
+  document.getElementById("overlay").style.display = "none";
+  document.getElementById("categoryModal").style.display = "none";
+}
+
+function setCategory(category) {
+  sendCategory(category);
+}
+
+function createCategory() {
+  const category = document.getElementById("newCategory").value;
+  if (category) sendCategory(category);
+}
+
+function sendCategory(category) {
+  fetch("/update_category", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: `item=${encodeURIComponent(currentItem)}&category=${encodeURIComponent(category)}`
+  }).then(() => location.reload());
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>カテゴリ一覧</title>
+
+  <style>
+
+    .category-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    ul {
+      padding-left: 0;
+    }
+
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 300px;   /* 好きな幅でOK */
+    }
+
+    .item-name {
+      flex: 1;
+      margin-right: 10px;
+      word-break: break-all; /* 長すぎても折り返す */
+    }
+
+    button.delete {
+      flex-shrink: 0;
+      color: #c00;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+<h2>グラフ色設定</h2>
+
+{% for c in categories %}
+<div class="category-row">
+  <strong>{{ c.name }}</strong>
+
+<input type="color"
+       value="{{ c.color }}"
+       onchange="updateColor('{{ c.name }}', this.value, this)">
+<span style="width:20px;height:20px;background:{{ c.color }};display:inline-block;"></span>
+</div>
+{% endfor %}
+
+<h2>カテゴリ分類一覧</h2>
+
+{% for c, items in category_items.items() %}
+  <h3>{{ c }}</h3>
+  <ul>
+  {% for item in items %}
+    <li class="item-row">
+    <span class="item-name">{{ item }}</span>
+    <button class="delete"
+            onclick="deleteItem('{{ item }}')">
+        削除
+    </button>
+    </li>
+  {% endfor %}
+  </ul>
+{% endfor %}
+
+<br>
+<button onclick="history.back()">戻る</button>
+
+<script>
+function deleteItem(item) {
+  if (!confirm(`「${item}」をカテゴリから削除する？`)) return;
+
+  fetch("/delete_item_category", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: `item=${encodeURIComponent(item)}`
+  }).then(() => {
+    location.reload();
+  });
+}
+
+
+function updateColor(category, color, inputEl) {
+    // ① プレビューの色を変える
+    const preview = inputEl.nextElementSibling;
+    if (preview) {
+        preview.style.background = color;
+    }
+
+    // ② DBに送信
+    fetch("/update_category_color", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `category=${encodeURIComponent(category)}&color=${encodeURIComponent(color)}`
+    });
+}
+
+</script>
+
+</body>
+</html>
